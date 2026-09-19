@@ -69,7 +69,7 @@ O sistema utiliza a arquitetura de **Agente Roteador / Delegador**:
    uv sync
    ```
 2. **Configuração (.env)**:
-   Copie `.env.example` para `.env` e adicione sua chave de API do Gemini (`GEMINI_API_KEY`).
+   Copie `.env.example` para `.env` e adicione sua chave de API do Gemini (`GEMINI_API_KEY`) e o modelo desejado (`MODEL=gemini-2.5-flash`).
    
 3. **Comando para Restaurar os Dados Iniciais**:
    Volta as tabelas do SQLite (visitantes e reservas) para o estado contido nos arquivos `.json` de `dados/`:

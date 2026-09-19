@@ -1,3 +1,4 @@
+import os
 from google.adk.agents import Agent
 from .tools import (
     consultar_reservas,
@@ -8,8 +9,12 @@ from .tools import (
     consultar_capitulo_regulamento
 )
 
+# O modelo pode ser configurado no .env, usando um leve como default (recomendado pela relação custo/benefício)
+MODEL_NAME = os.getenv("MODEL", "gemini-2.5-flash")
+
 agente_reservas = Agent(
     name="agente_reservas",
+    model=MODEL_NAME,
     instructions=(
         "Você é o especialista responsável por reservas e cancelamentos de áreas do condomínio.\n"
         "Quando o morador pedir para reservar ou cancelar uma área, use as ferramentas disponíveis.\n"
@@ -20,6 +25,7 @@ agente_reservas = Agent(
 
 agente_visitantes = Agent(
     name="agente_visitantes",
+    model=MODEL_NAME,
     instructions=(
         "Você é o especialista responsável por autorizar visitantes no condomínio.\n"
         "Sempre use a ferramenta de autorização e avise que o sistema solicitou liberação formal."
@@ -29,6 +35,7 @@ agente_visitantes = Agent(
 
 agente_regulamento = Agent(
     name="agente_regulamento",
+    model=MODEL_NAME,
     instructions=(
         "Você é o especialista no Regulamento do Residencial Aurora.\n"
         "Você não sabe o regulamento de cor. Sempre use a ferramenta 'consultar_capitulo_regulamento' "
@@ -40,6 +47,7 @@ agente_regulamento = Agent(
 
 agente_principal = Agent(
     name="agente_principal",
+    model=MODEL_NAME,
     instructions=(
         "Você é o assistente virtual do Residencial Aurora.\n"
         "O morador é do condomínio, mas você nunca deve perguntar de qual apartamento ele é "
