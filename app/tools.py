@@ -30,22 +30,33 @@ async def consultar_reservas(tool_context: ToolContext) -> str:
     linhas = [f"Reserva {r[0]} - Área: {r[1]} - Data: {r[2]}" for r in rows]
     return f"Reservas do apartamento {apto}:\n" + "\n".join(linhas)
 
-async def cancelar_reserva(codigo: str, tool_context: ToolContext) -> str:
-    """Cancela uma reserva do morador atual pelo código."""
+async def cancelar_reserva(tool_context: ToolContext, codigo: str = None, area: str = None, data: str = None) -> str:
+    """Cancela uma reserva do morador atual. Forneça o 'codigo' da reserva, ou a 'area' e 'data'."""
     apto = await get_apto(tool_context.session.id)
     
     async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT apartamento FROM reservas WHERE codigo = ?", (codigo,)) as cursor:
-            row = await cursor.fetchone()
-            if not row:
-                return f"Erro: Reserva {codigo} não encontrada."
-            if row[0] != apto:
-                return f"Erro: A reserva {codigo} não pertence ao seu apartamento ({apto})."
-                
-        await db.execute("DELETE FROM reservas WHERE codigo = ?", (codigo,))
-        await db.commit()
-    
-    return f"Reserva {codigo} cancelada com sucesso."
+        if codigo:
+            async with db.execute("SELECT apartamento FROM reservas WHERE codigo = ?", (codigo,)) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    return f"Erro: Reserva {codigo} não encontrada."
+                if row[0] != apto:
+                    return f"Erro: A reserva {codigo} não pertence ao seu apartamento ({apto})."
+            await db.execute("DELETE FROM reservas WHERE codigo = ?", (codigo,))
+            await db.commit()
+            return f"Reserva {codigo} cancelada com sucesso."
+        elif area and data:
+            async with db.execute("SELECT codigo, apartamento FROM reservas WHERE area = ? AND data = ?", (area, data)) as cursor:
+                row = await cursor.fetchone()
+                if not row:
+                    return f"Erro: Não há reserva para a área {area} na data {data}."
+                if row[1] != apto:
+                    return f"Erro: A reserva para {area} em {data} pertence a outro apartamento."
+            await db.execute("DELETE FROM reservas WHERE area = ? AND data = ? AND apartamento = ?", (area, data, apto))
+            await db.commit()
+            return f"Reserva de {area} em {data} cancelada com sucesso."
+        else:
+            return "Erro: Forneça o código da reserva, ou a área e a data para cancelar."
 
 async def reservar_area(area: str, data: str, tool_context: ToolContext) -> str:
     """Reserva uma área comum. Requer área (ID da área) e data (YYYY-MM-DD)."""

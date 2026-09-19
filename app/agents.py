@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 from google.adk.agents import Agent
 from .tools import (
     consultar_reservas,

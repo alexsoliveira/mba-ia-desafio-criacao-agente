@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from typing import List, Dict, Any
+from dotenv import load_dotenv
+load_dotenv()
 from contextlib import asynccontextmanager
 from google.adk.sessions import DatabaseSessionService
 from google.adk.runners import Runner

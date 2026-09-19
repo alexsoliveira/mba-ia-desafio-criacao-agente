@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Alex", email = "alexsoliveira@gmail.com" }
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "aiosqlite>=0.22.1",
     "fastapi>=0.141.1",
@@ -16,9 +16,4 @@ dependencies = [
     "uvicorn>=0.53.0",
 ]
 
-[project.scripts]
-mba-ia-desafio-criacao-agente = "mba_ia_desafio_criacao_agente:main"
 
-[build-system]
-requires = ["uv_build>=0.12.17,<0.13.0"]
-build-backend = "uv_build"
