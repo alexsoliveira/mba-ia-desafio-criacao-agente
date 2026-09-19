@@ -1,0 +1,24 @@
+[project]
+name = "mba-ia-desafio-criacao-agente"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Alex", email = "alexsoliveira@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "fastapi>=0.141.1",
+    "google-adk[db]>=2.9.2",
+    "pydantic>=2.13.5",
+    "python-dotenv>=1.2.3",
+    "uvicorn>=0.53.0",
+]
+
+[project.scripts]
+mba-ia-desafio-criacao-agente = "mba_ia_desafio_criacao_agente:main"
+
+[build-system]
+requires = ["uv_build>=0.12.17,<0.13.0"]
+build-backend = "uv_build"
