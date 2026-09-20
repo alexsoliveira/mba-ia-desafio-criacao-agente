@@ -58,8 +58,11 @@ async def _process_runner(session_id: str, invocation_id=None, texto=None, state
         kwargs["state_delta"] = state_delta
 
     pending_confs = {} # cid -> conf
-    
+    adk_conf_ids = {} # cid -> conf_id
+
+    last_invoc_id = None
     async for event in runner.run_async(**kwargs):
+        last_invoc_id = event.invocation_id
         if event.actions and event.actions.requested_tool_confirmations:
             for cid, conf in event.actions.requested_tool_confirmations.items():
                 pending_confs[cid] = conf
@@ -70,17 +73,19 @@ async def _process_runner(session_id: str, invocation_id=None, texto=None, state
                     resposta_text += p.text
                 if p.function_call and p.function_call.name == "adk_request_confirmation":
                     conf_id = p.function_call.id
-                    orig_call = p.function_call.args.get('tool_calls', [{}])[0]
-                    cid = orig_call.get('id')
-                    
-                    conf = pending_confs.get(cid)
-                    if conf:
-                        confirmacoes.append(PendenciaItem(
-                            id=conf_id,
-                            acao=conf.hint or "Confirmar Ação",
-                            detalhes=conf.payload or {}
-                        ))
-                        await add_pending_conf(conf_id, session_id, event.invocation_id)
+                    cid = p.function_call.args.get('originalFunctionCall', {}).get('id')
+                    if cid:
+                        adk_conf_ids[cid] = conf_id
+                        
+    for cid, conf in pending_confs.items():
+        conf_id = adk_conf_ids.get(cid)
+        if conf_id:
+            confirmacoes.append(PendenciaItem(
+                id=conf_id,
+                acao=conf.hint or "Confirmar Ação",
+                detalhes=conf.payload or {}
+            ))
+            await add_pending_conf(conf_id, session_id, last_invoc_id)
                 
     return MensagemResponse(resposta=resposta_text.strip(), confirmacoes_pendentes=confirmacoes)
 
