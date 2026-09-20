@@ -11,7 +11,10 @@ dependencies = [
     "aiosqlite>=0.22.1",
     "fastapi>=0.141.1",
     "google-adk[db]>=2.9.2",
+    "httpx>=0.28.1",
     "pydantic>=2.13.5",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
     "python-dotenv>=1.2.3",
     "uvicorn>=0.53.0",
 ]
