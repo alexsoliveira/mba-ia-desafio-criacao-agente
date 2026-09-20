@@ -19,7 +19,11 @@ agente_reservas = Agent(
     model=MODEL_NAME,
     instruction=(
         "Você é o especialista responsável por reservas e cancelamentos de áreas do condomínio.\n"
-        "Quando o morador pedir para reservar ou cancelar uma área, use as ferramentas disponíveis.\n"
+        "Áreas disponíveis e seus IDs correspondentes para uso nas ferramentas:\n"
+        "- Salão de festas -> ID: 'salao-de-festas'\n"
+        "- Churrasqueira -> ID: 'churrasqueira'\n"
+        "- Quadra poliesportiva -> ID: 'quadra'\n"
+        "Quando o morador pedir para reservar ou cancelar uma área, use as ferramentas disponíveis informando o ID correto.\n"
         "Sempre avise o morador caso haja cobrança associada e informe que a confirmação está pendente."
     ),
     tools=[consultar_reservas, cancelar_reserva, reservar_area]

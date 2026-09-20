@@ -61,11 +61,13 @@ async def cancelar_reserva(tool_context: ToolContext, codigo: str = None, area: 
 async def reservar_area(area: str, data: str, tool_context: ToolContext) -> str:
     """Reserva uma área comum. Requer área (ID da área) e data (YYYY-MM-DD)."""
     apto = await get_apto(tool_context.session.id)
+    print(f"DEBUG reservar_area: apto={apto}, area={area}, data={data}, conf={tool_context.tool_confirmation}")
     
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT taxa FROM areas WHERE id = ?", (area,)) as cursor:
             row = await cursor.fetchone()
             if not row:
+                print(f"DEBUG reservar_area: area {area} nao existe")
                 return f"Erro: Área '{area}' não existe."
             taxa = row[0]
             
@@ -75,13 +77,16 @@ async def reservar_area(area: str, data: str, tool_context: ToolContext) -> str:
             hint="Aprovar taxa de reserva",
             payload={"area": area, "data": data, "taxa": taxa}
         )
+        print(f"DEBUG reservar_area: requesting confirmation")
         return "Confirmação de cobrança solicitada."
         
     # Se o usuário rejeitou a confirmação
     if tool_context.tool_confirmation and not tool_context.tool_confirmation.payload.get("confirmado"):
+        print(f"DEBUG reservar_area: confirmation rejected")
         return "Reserva cancelada pois a cobrança não foi aprovada."
 
     codigo = f"RSV-{uuid.uuid4().hex[:6].upper()}"
+    print(f"DEBUG reservar_area: inserting {codigo}")
     
     try:
         async with aiosqlite.connect(DB_PATH) as db:
@@ -90,8 +95,10 @@ async def reservar_area(area: str, data: str, tool_context: ToolContext) -> str:
                 (codigo, apto, area, data)
             )
             await db.commit()
+            print(f"DEBUG reservar_area: inserted successfully")
     except aiosqlite.IntegrityError:
         # Garantia 5: Dois moradores, uma reserva
+        print(f"DEBUG reservar_area: IntegrityError")
         return "Erro: Esta área já foi reservada por outro morador para esta mesma data."
 
     return f"Reserva concluída com sucesso! O código da sua reserva é {codigo}."

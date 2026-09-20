@@ -39,7 +39,7 @@ async def criar_sessao(req: SessaoCreate):
     await set_tenant(session_id, req.apartamento)
     return SessaoResponse(session_id=session_id)
 
-async def _process_runner(session_id: str, invocation_id=None, texto=None, state_delta=None):
+async def _process_runner(session_id: str, invocation_id=None, texto=None, state_delta=None, content_msg=None):
     resposta_text = ""
     confirmacoes = []
     
@@ -52,38 +52,48 @@ async def _process_runner(session_id: str, invocation_id=None, texto=None, state
     if texto:
         from google.genai.types import Content, Part
         kwargs["new_message"] = Content(role="user", parts=[Part.from_text(text=texto)])
+    elif content_msg:
+        kwargs["new_message"] = content_msg
     if state_delta:
         kwargs["state_delta"] = state_delta
 
+    pending_confs = {} # cid -> conf
+    
     async for event in runner.run_async(**kwargs):
+        if event.actions and event.actions.requested_tool_confirmations:
+            for cid, conf in event.actions.requested_tool_confirmations.items():
+                pending_confs[cid] = conf
+
         if event.content and event.content.parts:
             for p in event.content.parts:
                 if p.text:
                     resposta_text += p.text
+                if p.function_call and p.function_call.name == "adk_request_confirmation":
+                    conf_id = p.function_call.id
+                    orig_call = p.function_call.args.get('tool_calls', [{}])[0]
+                    cid = orig_call.get('id')
                     
-        # Verifica confirmacoes pendentes
-        if event.actions and event.actions.requested_tool_confirmations:
-            for cid, conf in event.actions.requested_tool_confirmations.items():
-                confirmacoes.append(PendenciaItem(
-                    id=cid,
-                    acao=conf.hint or "Confirmar Ação",
-                    detalhes=conf.payload or {}
-                ))
-                # Salva no DB local para garantir idempotencia / erro 409 se repetido
-                await add_pending_conf(cid, session_id, event.invocation_id)
+                    conf = pending_confs.get(cid)
+                    if conf:
+                        confirmacoes.append(PendenciaItem(
+                            id=conf_id,
+                            acao=conf.hint or "Confirmar Ação",
+                            detalhes=conf.payload or {}
+                        ))
+                        await add_pending_conf(conf_id, session_id, event.invocation_id)
                 
     return MensagemResponse(resposta=resposta_text.strip(), confirmacoes_pendentes=confirmacoes)
 
 @app.post("/sessoes/{session_id}/mensagens", response_model=MensagemResponse)
 async def enviar_mensagem(session_id: str, req: MensagemRequest):
-    sess = await session_service.get_session(session_id)
+    sess = await session_service.get_session(app_name="aurora", user_id="sys", session_id=session_id)
     if not sess:
         raise HTTPException(status_code=404, detail="Sessão não encontrada")
     return await _process_runner(session_id, texto=req.texto)
 
 @app.post("/sessoes/{session_id}/confirmacoes", response_model=MensagemResponse)
 async def confirmar_mensagem(session_id: str, req: ConfirmacaoRequest):
-    sess = await session_service.get_session(session_id)
+    sess = await session_service.get_session(app_name="aurora", user_id="sys", session_id=session_id)
     if not sess:
         raise HTTPException(status_code=404, detail="Sessão não encontrada")
         
@@ -92,24 +102,31 @@ async def confirmar_mensagem(session_id: str, req: ConfirmacaoRequest):
     if not invoc_id:
         raise HTTPException(status_code=409, detail="Confirmação pendente não encontrada para esse ID.")
         
-    delta = {
-        "tool_confirmations": {
-            req.id: {
-                "confirmed": req.confirmado,
-                "payload": {"confirmado": req.confirmado}
-            }
-        }
-    }
+    from google.genai.types import Content, Part, FunctionResponse
     
-    # Retoma
-    return await _process_runner(session_id, invocation_id=invoc_id, state_delta=delta)
+    # Em google-adk, a confirmação deve ser enviada como FunctionResponse para o ID da chamada original
+    msg = Content(
+        role="user",
+        parts=[
+            Part(
+                function_response=FunctionResponse(
+                    id=req.id,
+                    name="adk_request_confirmation", 
+                    response={"confirmed": req.confirmado, "payload": {"confirmado": req.confirmado}}
+                )
+            )
+        ]
+    )
+    
+    # Retoma com a confirmação
+    return await _process_runner(session_id, invocation_id=invoc_id, content_msg=msg)
 
 @app.get("/sessoes/{session_id}/eventos")
 async def listar_eventos(session_id: str):
-    sess = await session_service.get_session(session_id)
+    sess = await session_service.get_session(app_name="aurora", user_id="sys", session_id=session_id)
     if not sess:
         raise HTTPException(status_code=404, detail="Sessão não encontrada")
-    return [e.model_dump() for e in sess.events]
+    return [e.model_dump(mode="json") for e in sess.events]
 
 @app.get("/apartamentos/{id}/reservas")
 async def ver_reservas(id: str):
